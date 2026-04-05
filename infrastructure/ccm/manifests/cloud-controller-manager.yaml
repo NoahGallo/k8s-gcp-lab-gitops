@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-controller-manager
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:cloud-controller-manager
+rules:
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch, update]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list, watch, delete, patch, update]
+  - apiGroups: [""]
+    resources: [nodes/status]
+    verbs: [patch]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, list, patch, update, watch]
+  - apiGroups: [""]
+    resources: [services/status]
+    verbs: [patch, update]
+  - apiGroups: [""]
+    resources: [serviceaccounts]
+    verbs: [create, get]
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, list, update, watch]
+  - apiGroups: [""]
+    resources: [endpoints]
+    verbs: [create, get, list, watch, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, watch]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create, get, list, watch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:cloud-controller-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:cloud-controller-manager
+subjects:
+  - kind: ServiceAccount
+    name: cloud-controller-manager
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cloud-controller-manager
+  namespace: kube-system
+  labels:
+    component: cloud-controller-manager
+spec:
+  selector:
+    matchLabels:
+      component: cloud-controller-manager
+  template:
+    metadata:
+      labels:
+        component: cloud-controller-manager
+    spec:
+      serviceAccountName: cloud-controller-manager
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule
+        - key: node.cloudprovider.kubernetes.io/uninitialized
+          effect: NoSchedule
+          value: "true"
+      hostNetwork: true
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: cloud-controller-manager
+          image: registry.k8s.io/cloud-provider-gcp/cloud-controller-manager:v28.2.0
+          command:
+            - /cloud-controller-manager
+            - --cloud-provider=gce
+            - --leader-elect=true
+            - --use-service-account-credentials
+            - --controllers=cloud-node,cloud-node-lifecycle,service,route
+            - --cloud-config=/etc/kubernetes/cloud-config.conf
+          volumeMounts:
+            - name: cloud-config
+              mountPath: /etc/kubernetes/cloud-config.conf
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 50Mi
+      volumes:
+        - name: cloud-config
+          hostPath:
+            path: /etc/kubernetes/cloud-config.conf
+            type: File
