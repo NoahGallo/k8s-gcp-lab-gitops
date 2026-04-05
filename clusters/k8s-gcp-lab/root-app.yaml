@@ -10,9 +10,7 @@ spec:
   source:
     repoURL: https://github.com/NoahGallo/k8s-gcp-lab-gitops
     targetRevision: main
-    path: infrastructure
-    directory:
-      recurse: true
+    path: apps
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

@@ -86,7 +86,7 @@ spec:
       priorityClassName: system-cluster-critical
       containers:
         - name: cloud-controller-manager
-          image: registry.k8s.io/cloud-provider-gcp/cloud-controller-manager:v28.2.0
+          image: registry.k8s.io/cloud-provider-gcp/cloud-controller-manager:v32.0.0
           command:
             - /cloud-controller-manager
             - --cloud-provider=gce
